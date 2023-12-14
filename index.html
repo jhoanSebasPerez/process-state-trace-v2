@@ -118,6 +118,8 @@
                 <p>Ready Queue: <span id="ready"></span></p>
                 <p>Block Queue: <span id="block"></span></p>
             </div>
+
+            <table id="tableProcesses"></table>
         </div>
     
         <div id="traceContainer">
@@ -151,12 +153,20 @@
 
     let limitCyclesDispatcher;
 
+    const states = {
+            running: "🟩",
+            ready: "⬜️",
+            block: "🟥",
+            finish: "🟨"
+        }
+
     function algorithmForTrace(){
         /* From here initiate algorithm */
         const processesInfo = {
             dispatcher: {
                 currentState: "ready",
-                instructions: []
+                instructions: [],
+                executionTime: 0
             }
         }
         let processInsideSystem = ["dispatcher"]
@@ -164,12 +174,6 @@
             readyQueue: [],
             blockQueue: [],
             running:""
-        }
-        const states = {
-            running: "🟩",
-            ready: "⬜️",
-            block: "🟥",
-            finish: "🟨"
         }
 
         const results = {
@@ -194,7 +198,8 @@
             processesInfo[labelProcess] = {
                 trace: p.split(","),
                 pointer: 0,
-                currentState: "ready"
+                currentState: "ready",
+                executionTime: 0
             }
             processInsideSystem.push(labelProcess)
             dispatchInfo.readyQueue.push(labelProcess)
@@ -206,7 +211,8 @@
 
         dispatchInfo.running = dispatchInfo.readyQueue.shift();
         const traceProcessorResult = [];
-        for(let time=1; time<=NUMBER_INSTRUCTION_CYCLES; time++){
+        let time;
+        for(time=1; time<=NUMBER_INSTRUCTION_CYCLES; time++){
             if(dispatchInfo.running === undefined)
                 break;
         
@@ -222,6 +228,7 @@
             }else if(instruction === "F"){
                 results[dispatchInfo.running].push("🟨")
                 processesInfo[dispatchInfo.running].currentState = "finish"
+                processesInfo[dispatchInfo.running].executionTime = time;
                 processInsideSystem = processInsideSystem.filter(p => p !== dispatchInfo.running)
                 time = dispatcherExecution(processesInfo, states, results, time) - 1;
                 continue;
@@ -290,7 +297,11 @@
             }
         }
 
-        return {results, traceProcessorResult, dispatchInfo};
+        processInsideSystem.forEach(p => {
+            processesInfo[p].executionTime = time - 1;
+        })
+
+        return {results, traceProcessorResult, dispatchInfo, processesInfo};
     }
 
     function clean(){
@@ -300,6 +311,10 @@
 
         while (traceProcessor.firstChild) {
             traceProcessor.removeChild(traceProcessor.firstChild);
+        }
+
+        while (tableProcesses.firstChild) {
+            tableProcesses.removeChild(tableProcesses.firstChild);
         }
 
         document.querySelector('#ready').textContent = "";
@@ -316,7 +331,7 @@
         e.preventDefault();
         clean();
 
-        const {results, traceProcessorResult, dispatchInfo} = algorithmForTrace();
+        const {results, traceProcessorResult, dispatchInfo, processesInfo} = algorithmForTrace();
 
         const limit = document.querySelector('#nInstructions').value;
         const trn = document.createElement('tr');
@@ -366,10 +381,45 @@
         })
 
         document.querySelector('#running').textContent = dispatchInfo.running;
-
         document.querySelector('#ready').textContent = "["+dispatchInfo.readyQueue.join(", ")+"]";
-
         document.querySelector('#block').textContent = "["+dispatchInfo.blockQueue.join(", ")+"]";
+        
+        const processTimes = Object.keys(processesInfo).filter(p => p !== "dispatcher");
+
+        const tableProcesses = document.querySelector('#tableProcesses');
+        const thead = document.createElement('thead');
+        const tr = document.createElement('tr');
+
+        const th1 = document.createElement('th');
+        th1.textContent = "Process ID";
+        const th2 = document.createElement('th');
+        th2.textContent = "Execution Time";
+        const th3 = document.createElement('th');
+        th3.textContent = "State final";
+
+        tr.appendChild(th1);
+        tr.appendChild(th2);
+        tr.appendChild(th3);
+        thead.appendChild(tr);
+        tableProcesses.appendChild(thead);
+
+        processTimes.forEach(p => {
+            const tr = document.createElement('tr');
+
+            const td1 = document.createElement('td');
+            const td2 = document.createElement('td');
+            const td3 = document.createElement('td');
+
+            td1.textContent = p;
+            td2.textContent = processesInfo[p].executionTime;
+            td3.textContent = processesInfo[p].currentState + " " + states[processesInfo[p].currentState];
+
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+
+            tableProcesses.appendChild(tr);
+        })
     })
 
     </script>
