@@ -129,6 +129,91 @@
     </div>
 
     <script>
+
+        /* Validations */ 
+
+        //Validate if process start with I, F or T
+        function validStartEnd(process) {
+            let inicio = 0;
+            let final = process.length - 1;
+            if (
+                process[inicio] === "I" || process[inicio] === "F" ||process[inicio] === "T") {
+                return false;
+            } else if (process[final] === "T" || process[final] === "I") {
+                    return false;
+            } else {
+                    return true;
+            }
+        }
+
+        //Validate if process finish with F and no have more characters
+        function validEnd(process) {
+            let final = process.length - 1;
+            if (process[final] === "F") {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function isAllowedLetter(letter){
+            const l=["T","F","I"];
+            return l.includes(letter);
+        }
+
+        //Validete that the process only contains numbers or letters T, F, I
+        function validProcess(process) {
+            let i = 0;
+            let valid = true;
+            while (i < process.length && valid) {
+                if (isNaN(process[i]) && !isAllowedLetter(process[i])) {
+                    valid = false;
+                }
+                i++;
+            }
+            return valid;
+        }
+
+        function correctSeq(infoProcess){
+            for(let i=0;i<infoProcess.length;i++){
+                    if((infoProcess[i] === "I" || infoProcess[i] === "T") && infoProcess[i+1] === "F"){
+                        return false; //No es válido porque luego de una I o T, no puede haber una F
+                }
+            }
+         return true;
+        }
+
+        const globalSet = new Set(); // Esto lo hice para tener un conjunto general, para que se pueda consultar si ya existe
+                            //El número, por lo que lo dejé para que lo vieras.
+        
+        function noRepetitionMemory(infoProcess){
+            //validate that the process characters are not in the set
+            for (const p of infoProcess){
+                if (!isNaN(p)){
+                    if(globalSet.has(p)){
+                        return false; //Ya existe el número en el conjunto, por lo que no se puede repetir
+                    }
+                    globalSet.add(p);
+                }
+            }
+            return true; //No se repite ningún número
+        }
+
+        function correctSeqNumbers(infoProcess){
+            let last=null;
+            for (const p of infoProcess){
+                if (!isNaN(p)){
+                    pNumber = parseInt(p);
+                    if(last !== null && pNumber !== last + 1){
+                        return false; //No es consecuente el número, no sigue la secuencia. Las direcciones de memoria no están seguidas.
+                    }
+                last = pNumber;
+                }
+            }
+            return true; //Todos los números están en una correc
+        }
+
+
         // Input process info and dispatcher info
         const processInfo = document.getElementById('processInfo');
         const submitProcess = document.getElementById('submit');
@@ -139,6 +224,50 @@
         // Show processes info in table
         submitProcess.addEventListener('click', (e) => {
             e.preventDefault();
+
+            //Separate processinfo by commas and remove spaces
+            processInfo.value = processInfo.value.replace(/\s/g, '');
+            const inputProcess = processInfo.value = processInfo.value.split(",")
+
+            //Make validations before add process
+
+            //Validate that the process only contains numbers or letters T, F, I
+            if(!validProcess(inputProcess)){
+                alert("The process must contain only numbers or letters T, F, I");
+                return;
+            }
+
+            //Validate if process not start with I, F or T
+            if(!validStartEnd(inputProcess)){
+                alert("The process must start with a letter different from I, F or T and end with a letter different from I or T");
+                return;
+            }
+            
+            //Validate if process finish with F and no have more characters
+            if(!validEnd(inputProcess)){
+                alert("The process must end with the letter F and cannot have more characters");
+                return;
+            }
+
+            //Validate that the process does not have a sequence of I or T followed by F
+            if(!correctSeq(inputProcess)){
+                alert("The process cannot have a sequence of I or T followed by F");
+                return;
+            }
+
+            //Validate that the process does not take up the same memory space as another process
+            if(!noRepetitionMemory(inputProcess)){
+                alert("The process cannot take up the same memory space as another process");
+                return;
+            }
+
+            //Validate correct sequence of numbers in memory
+            if(!correctSeqNumbers(inputProcess)){
+                alert("The process does not have a correct sequence of numbers in memory");
+                return;
+            }
+
+
             processes.push(processInfo.value);
             const tr = document.createElement('tr');
             const processId = document.createElement('td');
@@ -152,7 +281,7 @@
         });
 
     let limitCyclesDispatcher;
-
+    const labels = ["I", "F", "T"]
     const states = {
             running: "🟩",
             ready: "⬜️",
@@ -212,41 +341,56 @@
         dispatchInfo.running = dispatchInfo.readyQueue.shift();
         const traceProcessorResult = [];
         let time;
+        let countIterations = 1;
         for(time=1; time<=NUMBER_INSTRUCTION_CYCLES; time++){
             if(dispatchInfo.running === undefined)
                 break;
+
+            processesInfo[dispatchInfo.running].currentState = "running"
         
             const instruction = processesInfo[dispatchInfo.running].trace.shift();
             addTraceProcessor(instruction, dispatchInfo.running)
+
+            if(countIterations % cyclesInterrupts == 0 && !labels.includes(instruction)){
+                addTraceProcessor("T", dispatchInfo.running)
+                if(processesInfo[dispatchInfo.running].trace[0] === "T"){
+                    processesInfo[dispatchInfo.running].trace.shift()
+                }
+                paintProcesses(dispatchInfo.running);
+                results[dispatchInfo.running].push(states[processesInfo[dispatchInfo.running].currentState]);
+                processesInfo[dispatchInfo.running].currentState = "ready"
+                dispatchInfo.readyQueue.push(dispatchInfo.running);
+                time = dispatcherExecution(processesInfo, states, results, time);
+                continue;
+            }
             
             if(instruction === "I"){
                 results[dispatchInfo.running].push("🟥")
                 processesInfo[dispatchInfo.running].currentState = "block"
                 dispatchInfo.blockQueue.push(dispatchInfo.running);
-                time = dispatcherExecution(processesInfo, states, results, time) - 1;
+                paintProcesses(dispatchInfo.running)
+                time = dispatcherExecution(processesInfo, states, results, time);
                 continue;
             }else if(instruction === "F"){
                 results[dispatchInfo.running].push("🟨")
                 processesInfo[dispatchInfo.running].currentState = "finish"
                 processesInfo[dispatchInfo.running].executionTime = time;
+                paintProcesses(dispatchInfo.running)
                 processInsideSystem = processInsideSystem.filter(p => p !== dispatchInfo.running)
-                time = dispatcherExecution(processesInfo, states, results, time) - 1;
+                time = dispatcherExecution(processesInfo, states, results, time);
                 continue;
             }else if(instruction === "T"){
                 processesInfo[dispatchInfo.running].currentState = "ready"
                 dispatchInfo.readyQueue.push(dispatchInfo.running);
-                time = dispatcherExecution(processesInfo, states, results, time) - 1;
+                time = dispatcherExecution(processesInfo, states, results, time);
                 continue;
             }else{
-                results[dispatchInfo.running].push("🟩")
-                processesInfo[dispatchInfo.running].currentState = "running"
+                countIterations++;
+                results[dispatchInfo.running].push(states[processesInfo[dispatchInfo.running].currentState]);
+                paintProcesses(dispatchInfo.running)
             }
-        
-            processInsideSystem.forEach(p => {
-                if(p !== dispatchInfo.running)
-                    results[p].push(states[processesInfo[p].currentState]);
-            })
         }
+    
 
         function dispatcherExecution(processesInfo, states, results, currentTime) {
             dispatchInfo.running = "dispatcher"
@@ -255,9 +399,7 @@
             let i = 0;
             for(d=currentTime; d<=NUMBER_INSTRUCTION_CYCLES && d<=(currentTime+(cyclesDispatcher-1)); d++){
                 addTraceProcessor(processesInfo[dispatchInfo.running].instructions[i++], "dispatcher");
-                processInsideSystem.forEach(p => {
-                    results[p].push(states[processesInfo[p].currentState]);
-                })
+                paintProcesses("");
             }
                 if(d <= NUMBER_INSTRUCTION_CYCLES){
                     processesInfo["dispatcher"].currentState = "ready"
@@ -266,10 +408,19 @@
                     if(dispatchInfo.blockQueue.length > 0){
                         const blockedProc = dispatchInfo.blockQueue.shift();
                         wakeUpBlockProcess(blockedProc);
-                        results[blockedProc].pop();
+                        //results[blockedProc].pop();
                     }
                 }
+            countIterations = 1;
+            console.log("V value: ", d);
             return d;
+        }
+
+        function paintProcesses(excludeProcess){
+            processInsideSystem.forEach(p => {
+                if(p !== excludeProcess)
+                    results[p].push(states[processesInfo[p].currentState]);
+            })
         }
 
         function wakeUpBlockProcess(process){
@@ -284,13 +435,13 @@
         function addTraceProcessor(instruction, process){
             switch(instruction){
                 case "T":
-                traceProcessorResult.push("--TIME-OUT")
+                traceProcessorResult.push("--TIME-OUT ")
                 break;
                 case "I":
-                traceProcessorResult.push("--I/O request")
+                traceProcessorResult.push(`I/O request from ${process}`)
                 break;
                 case "F":
-                traceProcessorResult.push("--End of process")
+                traceProcessorResult.push(`End of process ${process}`)
                 break;
                 default:
                 traceProcessorResult.push(`${instruction} - ${process}`);
@@ -368,8 +519,14 @@
             
             if(trace.includes("--")){
                 td.textContent = trace;
+                
             }else{
                 td.textContent = `${i++} - ${trace}`;
+                if(trace.includes("I/O")){
+                    td.style.backgroundColor = "#ff0000";
+                }else if(trace.includes("End")){
+                    td.style.backgroundColor = "yellow";
+                }
             }
 
             let getTrace = trace.split(" ")[0];
