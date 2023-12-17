@@ -352,10 +352,10 @@
             addTraceProcessor(instruction, dispatchInfo.running)
 
             if(countIterations % cyclesInterrupts == 0 && !labels.includes(instruction)){
-                addTraceProcessor("T", dispatchInfo.running)
-                if(processesInfo[dispatchInfo.running].trace[0] === "T"){
+                addTraceProcessor("Td", dispatchInfo.running)
+                /*if(processesInfo[dispatchInfo.running].trace[0] === "T"){
                     processesInfo[dispatchInfo.running].trace.shift()
-                }
+                }*/
                 paintProcesses(dispatchInfo.running);
                 results[dispatchInfo.running].push(states[processesInfo[dispatchInfo.running].currentState]);
                 processesInfo[dispatchInfo.running].currentState = "ready"
@@ -380,6 +380,7 @@
                 time = dispatcherExecution(processesInfo, states, results, time);
                 continue;
             }else if(instruction === "T"){
+                paintProcesses("");
                 processesInfo[dispatchInfo.running].currentState = "ready"
                 dispatchInfo.readyQueue.push(dispatchInfo.running);
                 time = dispatcherExecution(processesInfo, states, results, time);
@@ -397,22 +398,22 @@
             processesInfo[dispatchInfo.running].currentState = "running"
             let d;
             let i = 0;
-            for(d=currentTime; d<=NUMBER_INSTRUCTION_CYCLES && d<=(currentTime+(cyclesDispatcher-1)); d++){
+            const upperLimit = parseInt(currentTime) + parseInt(cyclesDispatcher) - 1;
+            for(d=currentTime; d<NUMBER_INSTRUCTION_CYCLES && d <= upperLimit; d++){
                 addTraceProcessor(processesInfo[dispatchInfo.running].instructions[i++], "dispatcher");
                 paintProcesses("");
             }
                 if(d <= NUMBER_INSTRUCTION_CYCLES){
-                    processesInfo["dispatcher"].currentState = "ready"
-                    dispatchInfo.running = dispatchInfo.readyQueue.shift();
-
                     if(dispatchInfo.blockQueue.length > 0){
                         const blockedProc = dispatchInfo.blockQueue.shift();
                         wakeUpBlockProcess(blockedProc);
                         //results[blockedProc].pop();
                     }
+                    processesInfo["dispatcher"].currentState = "ready"
+                    dispatchInfo.running = dispatchInfo.readyQueue.shift();
                 }
             countIterations = 1;
-            console.log("V value: ", d);
+            console.log("D value", d);
             return d;
         }
 
@@ -434,17 +435,21 @@
 
         function addTraceProcessor(instruction, process){
             switch(instruction){
+                case "Td":
+                    traceProcessorResult.push("-- TIME-OUT from Dispatcher --")
+                    break;
                 case "T":
-                traceProcessorResult.push("--TIME-OUT ")
-                break;
+                    traceProcessorResult.push(`-- TIME-OUT from Process ${process} --`)
+                    break;
                 case "I":
-                traceProcessorResult.push(`I/O request from ${process}`)
-                break;
+                    traceProcessorResult.push(`I/O request from ${process}`)
+                    break;
                 case "F":
-                traceProcessorResult.push(`End of process ${process}`)
-                break;
+                    traceProcessorResult.push(`End of process ${process}`)
+                    break;
                 default:
-                traceProcessorResult.push(`${instruction} - ${process}`);
+                    traceProcessorResult.push(`${instruction} - ${process}`);
+                    break;
             }
         }
 
@@ -517,7 +522,7 @@
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             
-            if(trace.includes("--")){
+            if(trace.includes("-- TIME-OUT from Dispatcher --")){
                 td.textContent = trace;
                 
             }else{
