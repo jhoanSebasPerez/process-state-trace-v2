@@ -88,6 +88,12 @@ function correctSeqNumbers(infoProcess) {
 }
 
 // Global data
+const renderButton = document.querySelector('#render')
+const renderForm = document.querySelector('#render-form')
+
+const tableResults = document.querySelector('#results')
+const traceProcessor = document.querySelector('#traceProcessor')
+
 const labels = ['I', 'F', 'T']
 
 const states = {
@@ -465,15 +471,15 @@ submitProcess.addEventListener('click', (e) => {
     return
   }
 
-  //Validate that the process does not take up the same memory space as another process
-  if (!noRepetitionMemory(inputProcess)) {
-    alert('The process cannot take up the same memory space as another process')
-    return
-  }
-
   //Validate correct sequence of numbers in memory
   if (!correctSeqNumbers(inputProcess)) {
     alert('The process does not have a correct sequence of numbers in memory')
+    return
+  }
+
+  //Validate that the process does not take up the same memory space as another process
+  if (!noRepetitionMemory(inputProcess)) {
+    alert('The process cannot take up the same memory space as another process')
     return
   }
 
@@ -490,11 +496,6 @@ submitProcess.addEventListener('click', (e) => {
 })
 
 // Run algorithm after when user click "Dispatcher run" button
-const renderButton = document.querySelector('#render')
-const renderForm = document.querySelector('#render-form')
-
-const tableResults = document.querySelector('#results')
-const traceProcessor = document.querySelector('#traceProcessor')
 
 renderForm.addEventListener('submit', (e) => {
   e.preventDefault()
