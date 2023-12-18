@@ -24,6 +24,12 @@ h1{
     color: white;
 }
 
+.btn:disabled, .btn-run:disabled{
+    background-color: #cfcfcf;
+    color: white;
+    cursor: not-allowed;
+}
+
 .btn-run{
     font-size: 18px;
     padding: 10px;
@@ -140,6 +146,14 @@ label {
 }
 
 .action-buttons{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 30px;
+    gap: 50px;
+}
+
+.render-button-container{
     display: flex;
     flex-direction: row;
     justify-content: center;

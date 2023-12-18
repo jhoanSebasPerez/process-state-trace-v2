@@ -87,6 +87,36 @@ function correctSeqNumbers(infoProcess) {
   return true //Todos los números están en una correc
 }
 
+//validate that the process does not take an instruction from the dispatcher
+function validDispatcherInstruction(infoProcess) {
+  for (const p of infoProcess) {
+    if (p >= 100 && p < 100 + parseInt(cyclesDispatcher)) {
+      return false
+    }
+  }
+  return true
+}
+
+//validate that the process only contains numbers graters than 100
+function validNumbers(infoProcess) {
+  for (const p of infoProcess) {
+    if (!isNaN(p) && p < 100) {
+      return false
+    }
+  }
+  return true
+}
+
+//Transforms only letters to upper case
+function toUpperCase(infoProcess) {
+  for (let i = 0; i < infoProcess.length; i++) {
+    if (isNaN(infoProcess[i])) {
+      infoProcess[i] = infoProcess[i].toUpperCase()
+    }
+  }
+  return infoProcess
+}
+
 // Global data
 const renderButton = document.querySelector('#render')
 const renderForm = document.querySelector('#render-form')
@@ -439,15 +469,32 @@ submitProcess.addEventListener('click', (e) => {
 
   //Separate processinfo by commas and remove spaces
   processInfo.value = processInfo.value.replace(/\s/g, '')
-  const inputProcess = (processInfo.value = processInfo.value.split(','))
+  let inputProcess = (processInfo.value = processInfo.value.split(','))
+  inputProcess = toUpperCase(inputProcess)
 
   //Make validations before add process
 
-  //Validate that the process only contains numbers or letters T, F, I
-  if (!validProcess(inputProcess)) {
-    alert('The process must contain only numbers or letters T, F, I')
+  //validate that the process only contains numbers graters than 100
+  if (!validNumbers(inputProcess)) {
+    alert(
+      'The process must only include instructions located above address 100.'
+    )
     return
   }
+
+  // validate that the process does not take an instruction from the dispatcher
+  if (!validDispatcherInstruction(inputProcess)) {
+    alert('The process cannot take an instruction from the dispatcher')
+    return
+  }
+
+  // validate that the process does not take an instruction from the dispatcher
+  if (processesInfo['dispatcher'].instructions.includes)
+    if (!validProcess(inputProcess)) {
+      //Validate that the process only contains numbers or letters T, F, I
+      alert('The process must contain only numbers or letters T, F, I')
+      return
+    }
 
   //Validate if process not start with I, F or T
   if (!validStartEnd(inputProcess)) {
@@ -483,23 +530,61 @@ submitProcess.addEventListener('click', (e) => {
     return
   }
 
-  processes.push(processInfo.value)
+  renderButton.disabled = false
+
+  processes.push(inputProcess.join(','))
   const tr = document.createElement('tr')
   const processId = document.createElement('td')
   const processContent = document.createElement('td')
   processId.textContent = `process-${processes.length - 1}`
-  processContent.textContent = processInfo.value
+  processContent.textContent = inputProcess.join(',')
   tr.appendChild(processId)
   tr.appendChild(processContent)
   showInfoProcess.appendChild(tr)
   processInfo.value = ''
 })
 
-// Run algorithm after when user click "Dispatcher run" button
+// Run algorithm after when user click "Execute scheduler" button
+renderButton.addEventListener('click', (e) => {
+  clean()
+
+  processes.forEach((p, index) => {
+    const labelProcess = `p-${index}`
+    processesInfo[labelProcess] = {
+      trace: p.split(','),
+      pointer: 0,
+      currentState: 'ready',
+      executionTime: 0
+    }
+    processInsideSystem.push(labelProcess)
+    dispatchInfo.readyQueue.push(labelProcess)
+
+    results[labelProcess] = []
+  })
+
+  dispatchInfo.running = dispatchInfo.readyQueue.shift()
+  while (!flagBlocked) {
+    algorithmExecution()
+  }
+
+  assignTimeExecution()
+
+  paintResult()
+})
 
 renderForm.addEventListener('submit', (e) => {
   e.preventDefault()
-  clean()
+
+  submitProcess.disabled = false
+
+  cyclesDispatcher = document.querySelector('#dispatcher-cycles').value
+  cyclesInterrupts = document.querySelector('#interrupts-cycles').value
+
+  for (let i = 100; i < 100 + cyclesDispatcher; i++) {
+    processesInfo['dispatcher'].instructions.push(i)
+  }
+
+  /*clean()
 
   cyclesDispatcher = document.querySelector('#dispatcher-cycles').value
   cyclesInterrupts = document.querySelector('#interrupts-cycles').value
@@ -529,5 +614,5 @@ renderForm.addEventListener('submit', (e) => {
 
   assignTimeExecution()
 
-  paintResult()
+  paintResult()*/
 })

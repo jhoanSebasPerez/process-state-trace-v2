@@ -13,13 +13,7 @@
         <img src="./logo_horizontal.jpeg" class="img"/>
        </div>
         <h1>Process State Trace</h1>
-        
-        <div class="process-info">
-            <label for="processInfo">Process Info</label>
-            <input type="text" id="processInfo" class="input-text">
-            <button id="submit" class="btn">Add information process</button>
-        </div>
-    
+
         <div class="dispatcher-info">
             <form id="render-form">
                 <div class="input-container">
@@ -32,8 +26,18 @@
                     <input type="text" id="interrupts-cycles" class="input-text" required>
                 </div>
     
-                <button id="render" class="btn-run">Dispatcher run</button>
+                <button class="btn-run">Add Info Dispatcher</button>
             </form>
+        </div>
+        
+        <div class="process-info">
+            <label for="processInfo">Process Info</label>
+            <input type="text" id="processInfo" class="input-text">
+            <button id="submit" class="btn" disabled>Add information process</button>
+        </div>
+
+        <div class="render-button-container">
+            <button id="render" class="btn-run" disabled >Execute scheduler</button>
         </div>
     
         <div class="show-info-process-container">
