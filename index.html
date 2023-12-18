@@ -69,7 +69,37 @@
         .img{
             width: 500px;
         }
+
+        #results{
+            margin-bottom: 15px;
+        }
+
+        .wakeup-button{
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #000;
+            background-color: #923b3b;
+            color: white;
+            cursor: pointer;
+            margin-left: 15px;
+        }
+        .table-results-container{
+            overflow-x: scroll;
+        }
+
+        .btn-next{
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #000;
+            background-color: #7cca7c;
+            color: white;
+            cursor: pointer;
+            margin-left: 15px;
+            margin-bottom: 30px;
+        }
+
     </style>
+    <script src="https://kit.fontawesome.com/3f9269fd9c.js" crossorigin="anonymous"></script>
 </head>
 <body>
     <img src="./logo_horizontal.jpeg" class="img"/>
@@ -89,9 +119,6 @@
             <label for="interrupts-cycles">Interrupt Cycles (Time Slot)</label>
             <input type="text" id="interrupts-cycles" required>
 
-            <label for="interrupts-cycles">Number of instructions to show</label>
-            <input type="text" id="nInstructions" value="10">
-
             <button id="render" class="btn-run">Dispatcher run</button>
         </form>
     </div>
@@ -108,9 +135,18 @@
     <div class="container-results">
         <div id="tableResults">
             <h2>Trace for all processes</h2>
-            <table id="results">
+
+            <div id="table-container">
+                <div class="table-results-container">
+                    <table id="results">
     
-            </table>
+                    </table>
+                </div>
+
+                <div id="next-instruction-container"></div>
+
+                <div id="wakeup-container"></div>
+            </div>
 
             <div>
                 <h3>System information</h3>
@@ -318,10 +354,7 @@
             processesInfo['dispatcher'].instructions.push(i);
         }
 
-        const NUMBER_INSTRUCTION_CYCLES = document.querySelector('#nInstructions').value;
-
         //Init PROCESS INFO AND DISPATCHER INFO
-        console.log(processes)
         processes.forEach((p, index) => {
             const labelProcess = `p-${index}`
             processesInfo[labelProcess] = {
@@ -340,11 +373,18 @@
 
         dispatchInfo.running = dispatchInfo.readyQueue.shift();
         const traceProcessorResult = [];
-        let time;
+        let time = 1;
         let countIterations = 1;
-        for(time=1; time<=NUMBER_INSTRUCTION_CYCLES; time++){
-            if(dispatchInfo.running === undefined)
-                break;
+        
+        let flagBlocked = false;
+        while(!flagBlocked){
+            algorithmExecution();
+        }
+
+
+        function algorithmExecution(){
+            if(dispatchInfo.running === undefined || processInsideSystem.length === 1)
+                return;
 
             processesInfo[dispatchInfo.running].currentState = "running"
         
@@ -361,7 +401,8 @@
                 processesInfo[dispatchInfo.running].currentState = "ready"
                 dispatchInfo.readyQueue.push(dispatchInfo.running);
                 time = dispatcherExecution(processesInfo, states, results, time);
-                continue;
+                time++;
+                return;
             }
             
             if(instruction === "I"){
@@ -369,26 +410,25 @@
                 processesInfo[dispatchInfo.running].currentState = "block"
                 dispatchInfo.blockQueue.push(dispatchInfo.running);
                 paintProcesses(dispatchInfo.running)
-                time = dispatcherExecution(processesInfo, states, results, time);
-                continue;
+                time = dispatcherExecution(processesInfo, states, results, time) + 1;
+                flagBlocked = true;
             }else if(instruction === "F"){
                 results[dispatchInfo.running].push("🟨")
                 processesInfo[dispatchInfo.running].currentState = "finish"
                 processesInfo[dispatchInfo.running].executionTime = time;
                 paintProcesses(dispatchInfo.running)
                 processInsideSystem = processInsideSystem.filter(p => p !== dispatchInfo.running)
-                time = dispatcherExecution(processesInfo, states, results, time);
-                continue;
+                time = dispatcherExecution(processesInfo, states, results, time) + 1;
             }else if(instruction === "T"){
                 paintProcesses("");
                 processesInfo[dispatchInfo.running].currentState = "ready"
                 dispatchInfo.readyQueue.push(dispatchInfo.running);
-                time = dispatcherExecution(processesInfo, states, results, time);
-                continue;
+                time = dispatcherExecution(processesInfo, states, results, time) + 1;
             }else{
                 countIterations++;
                 results[dispatchInfo.running].push(states[processesInfo[dispatchInfo.running].currentState]);
                 paintProcesses(dispatchInfo.running)
+                time++;
             }
         }
     
@@ -399,19 +439,15 @@
             let d;
             let i = 0;
             const upperLimit = parseInt(currentTime) + parseInt(cyclesDispatcher) - 1;
-            for(d=currentTime; d<NUMBER_INSTRUCTION_CYCLES && d <= upperLimit; d++){
+            for(d=currentTime; d <= upperLimit; d++){
                 addTraceProcessor(processesInfo[dispatchInfo.running].instructions[i++], "dispatcher");
                 paintProcesses("");
             }
-                if(d <= NUMBER_INSTRUCTION_CYCLES){
-                    if(dispatchInfo.blockQueue.length > 0){
-                        const blockedProc = dispatchInfo.blockQueue.shift();
-                        wakeUpBlockProcess(blockedProc);
-                        //results[blockedProc].pop();
-                    }
-                    processesInfo["dispatcher"].currentState = "ready"
-                    dispatchInfo.running = dispatchInfo.readyQueue.shift();
-                }
+               
+                
+            processesInfo["dispatcher"].currentState = "ready"
+            dispatchInfo.running = dispatchInfo.readyQueue.shift();
+                
             countIterations = 1;
             console.log("D value", d);
             return d;
@@ -422,15 +458,6 @@
                 if(p !== excludeProcess)
                     results[p].push(states[processesInfo[p].currentState]);
             })
-        }
-
-        function wakeUpBlockProcess(process){
-            if(!processesInfo[process].trace[0]){
-                dispatchInfo.blockQueue.push(process)
-            }else{
-                processesInfo[process].currentState = "ready"
-                dispatchInfo.readyQueue.push(process);
-            }
         }
 
         function addTraceProcessor(instruction, process){
@@ -457,7 +484,7 @@
             processesInfo[p].executionTime = time - 1;
         })
 
-        return {results, traceProcessorResult, dispatchInfo, processesInfo};
+        return {results, traceProcessorResult, dispatchInfo, processesInfo, time, flagBlocked, algorithmExecution};
     }
 
     function clean(){
@@ -475,6 +502,12 @@
 
         document.querySelector('#ready').textContent = "";
         document.querySelector('#block').textContent = "";
+
+        //clean wakeup buttons
+        const wakeUpContainer = document.querySelector('#wakeup-container');
+        while (wakeUpContainer.firstChild) {
+            wakeUpContainer.removeChild(wakeUpContainer.firstChild);
+        }
     }
 
     const renderButton = document.querySelector('#render');
@@ -487,18 +520,49 @@
         e.preventDefault();
         clean();
 
-        const {results, traceProcessorResult, dispatchInfo, processesInfo} = algorithmForTrace();
+        const {results, traceProcessorResult, dispatchInfo, processesInfo, time, flagBlocked, algorithmExecution} = algorithmForTrace();
+        console.log("Time: "+time);
+        paintResult(results, traceProcessorResult, dispatchInfo, processesInfo, time, flagBlocked);
+        
+    })
 
-        const limit = document.querySelector('#nInstructions').value;
+    function wakeUpBlockProcess(process, processesInfo, dispatchInfo){
+            if(!processesInfo[process].trace[0]){
+                dispatchInfo.blockQueue.push(process)
+            }else{
+                dispatchInfo.blockQueue = dispatchInfo.blockQueue.filter(p => p !== process);
+                processesInfo[process].currentState = "ready"
+                dispatchInfo.readyQueue.push(process);
+            }
+        }
+
+    function paintResult(){
         const trn = document.createElement('tr');
         const empty = document.createElement('td');
         trn.appendChild(empty);
-        for(let i=1; i<=limit; i++){
+        for(let i=1; i<time; i++){
             const td = document.createElement('td');
             td.textContent = i;
             trn.appendChild(td);
         }
         tableResults.appendChild(trn);
+
+        if(flagBlocked || processInsideSystem.length > 1){
+            const nextInstruction = document.querySelector('#next-instruction-container');
+            const nextInstructionButton = document.createElement('button');
+            nextInstructionButton.innerHTML = '<i class="fa-solid fa-forward"></i>';
+            nextInstructionButton.classList.add('btn-next');
+            nextInstructionButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                clean();
+                algorithmExecution();
+                paintResult(results, traceProcessorResult, dispatchInfo, processesInfo, time);
+                if(dispatchInfo.readyQueue.length === 0 && dispatchInfo.blockQueue.length === 0){
+                    nextInstruction.removeChild(nextInstructionButton);
+                }
+            })
+            nextInstruction.appendChild(nextInstructionButton);
+        }
 
 
         Object.keys(results).forEach(processName => {
@@ -515,6 +579,19 @@
 
             tableResults.appendChild(tr);
         })
+
+        const wakeUpContainer = document.querySelector('#wakeup-container');
+        dispatchInfo.blockQueue.forEach(p => {
+            const wakeUpbutton = document.createElement('button');
+            wakeUpbutton.textContent = `Wake up ${p}`;
+            wakeUpbutton.classList.add('wakeup-button');
+            wakeUpbutton.addEventListener('click', (e) => {
+                e.preventDefault();
+                wakeUpBlockProcess(p, processesInfo, dispatchInfo);
+                wakeUpContainer.removeChild(wakeUpbutton);
+            })
+            wakeUpContainer.appendChild(wakeUpbutton);
+        });
 
 
         let i = 1;
@@ -582,7 +659,7 @@
 
             tableProcesses.appendChild(tr);
         })
-    })
+    }
 
     </script>
 </body>
